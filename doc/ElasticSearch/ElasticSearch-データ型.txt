@@ -1,0 +1,117 @@
+
+[ ElasticSearch-データ型 ]
+
+
+目次
+    1. 概要
+    2. 環境
+    3. Elasticsearch6.0,7.0以降の注意点
+    4. Fieldのデータ型
+    5. BashからのMapping~データ投入
+    6. Kibana Dev-ToolsからのMapping~データ投入
+    7. まとめ
+    8. 次回
+
+
+
+
+
+
+Elasticsearch(7.9.1)にデータ投入
+https://qiita.com/hayapo/items/0da64f7c71b9c7e9636c
+
+
+Field data types (公式ドキュメント)
+https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html#structured-data-types
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+[ Nested データ型と Object データ型の違いを理解しておくと幸せ ]
+
+Elasticsearch は オブジェクトの配列構造をインデックスする方法として、Nested データ型をサポートしています。
+
+これは Object データ型の特殊な型です。
+
+今回はスキーマ設計ということなので詳細な型の設計は含まれていませんが、
+もしデータ構造の中にオブジェクトの配列構造を持った属性が複数あって、Nested データ型と Object データ型を使い分ける場合は、フィールド名称でその違いがわかるように設計するという考え方もあるので、説明しておきます。
+
+以下の例では、users というフィールドに first_name と last_name という対になっている情報があります。このデータが Nested データ型または Object データ型の対象データです。
+
+PUT my_index/my_type/1
+{
+  "group": "fans",
+  "users": [
+    {
+      "first_name": "John",
+      "last_name": "Smith"
+    },
+    {
+      "first_name": "Alice",
+      "last_name": "White"
+    }
+  ]
+}
+
+
+
+第２回 Elasticsearch 入門 データスキーマ設計のいろは
+https://dev.classmethod.jp/articles/elasticsearch-getting-started-02/
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+[ Robotamaでデータを投入して、自動生成のデータ型を確認してみる！ ]
+
+
+
+GET robotama/_search
+{
+  "query":{
+    "match":{
+      "like":"ラーメン"
+    }
+  }
+}
+
+
+
+
+GET robotama/_mapping
+
+
+{
+  "robotama" : {
+    "mappings" : {
+      "properties" : {
+        "like" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "name" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+        "power" : {
+          "type" : "long"
+        }
+      }
+    }
+  }
+}
+
+
+
+
+

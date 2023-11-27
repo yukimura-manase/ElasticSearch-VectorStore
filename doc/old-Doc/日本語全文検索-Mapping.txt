@@ -1,0 +1,587 @@
+
+
+ZOZOTOWNの検索機能では、Elasticsearchを利用しています。
+
+現在では検索機能の全般でElasticsearchを利用していますが、リリース当初はキーワード検索を実現するために採用していました。
+
+そのため、全文検索を実現するためのマッピング定義やAnalyzerを理解する必要がありました。
+
+
+
+< Elasticsearchで全文検索を実現させる手順 >
+
+    1. Elasticsearchの環境準備
+
+    2. マッピングの定義 => どのようにデータを格納するかを決める
+
+    3. Analyzerの定義 => どのように分割するか（検索でヒットさせるか）を決める
+
+    4. データの投入
+
+    5. 検索
+
+本記事では、2. と 3. を取り扱います。
+
+
+< 2. 全文検索のためのマッピング定義 >
+
+ドキュメント内の各フィールドのデータ構造やデータ型を記述した情報のことをマッピングと呼びます。
+
+
+マッピング定義の例です。
+
+    PUT /sample_index
+    {
+        "mappings": {
+            "properties": {
+            "age":    { "type": "integer" },
+            "email":  { "type": "keyword" },
+            "name":   { "type": "text" }
+            }
+        }
+    }
+
+また、文字列をフィールドに格納するためのデータ型には下記の2種類が存在します。
+
+全文検索では、文章から特定の文字列を検索することを指すため、前者のtext型のフィールドを使用します。
+
+
+1. text型
+    Analyzerによる単語の分割が行われ、転置インデックスが形成される
+
+
+2. keyword型
+
+    Analyzerによる単語の分割が行われず、原形のまま転置インデックスが形成される
+
+
+
+< Analyzerの構造 >
+
+全文検索するために文章を単語の単位に分割する処理機能を「Analyzer」と呼びます。
+
+下記はマッピング定義の例です。
+
+
+    PUT sample_index
+    {
+        "mappings": {
+            "properties": {
+                "goods_name":{
+                    "type": "text",
+                    "analyzer": "standard"
+                }
+            }
+        }
+    }
+
+
+なお、Elasticsearchがデフォルトで提供するAnalyzerは公式ドキュメントで参照可能です。
+
+
+そして、Analyzerは3つの処理ブロックから構成されています。
+
+    1. Character filters => 1文字単位の変換処理
+
+    2. Tokenizer => トークン（単語）に分割する処理
+
+    3. Token filters => 各トークンに対する変換処理
+
+
+上記の処理を用い、Analyzerは下記の流れで変換処理を行います。
+
+    1. Input
+
+    2. Character Filters
+
+    3. Tokenizer
+
+    4. Token Filters
+
+    5. Output
+
+また、「Tokenizer」は1つが必須であり、
+
+「Character Filters」 と 「Token Filters」は任意の数で構成できます。
+
+
+
+例えば、「 Standard Analyzer 」は以下の構成です。
+
+    2. Character Filters => なし
+
+    3. Tokenizer => Standard Tokenizer
+
+    4. Token Filters => Lower Case Token Filter, Stop Token Filter
+
+
+
+< 日本語対応のAnalyzer >
+
+Elasticsearchがデフォルトで提供するAnalyzerは、日本語に対応していません。
+
+そのため、日本語を扱うAnalyzerを構成する必要があります。
+
+「日本語の単語分割」は英語と比較して複雑であるため、個別に用意しなければいけません。
+
+英語の文は日本語とは異なり、予め単語と単語の区切りがほとんどの箇所で明確に示される。
+
+このため、単語分割の処理は日本語の場合ほど複雑である必要はなく、簡単なルールに基づく場合が多い。
+
+（引用：形態素解析 - Wikipedia）
+
+
+
+< 日本語対応のためのプラグイン追加 >
+
+日本語を扱うAnalyzerを構成するために、以下のプラグインをインストールします。
+
+
+    1. ICU Analysis Plugin
+
+    2. kuromoji Analysis Plugin
+
+
+    kuromoji Analyzerを指定したマッピング定義の例
+        
+    PUT sample_index
+    {
+    "mappings": {
+        "properties": {
+            "goods_name":{
+                "type": "text",
+                "analyzer": "kuromoji"
+            }
+        }
+    }
+    }
+
+
+
+< kuromojiプラグイン機能 >
+
+kuromoji Analyzerの詳細は公式ドキュメントから確認できます。
+
+ここでは、Char Filter、Tokenizer、Token Filterを表にまとめます。
+
+
+    分類	    プラグイン	    機能	                            例
+    Character   Filter	    kuromoji_iteration_mark	    踊り字の正規化	時々 → 時時
+
+    Tokenizer	kuromoji_tokenizer	    トークン化	関西国際空港 → 関西、関西国際空港、国際、空港
+
+    Token Filter	kuromoji_baseform	原形化	飲み → 飲む
+
+    Token Filter	kuromoji_part_of_speech	不要な品詞の除去	寿司がおいしいね → "寿司""おいしい"
+
+    Token Filter	kuromoji_readingform	読み仮名付与	寿司 → "スシ"もしくは"sushi"
+
+    Token Filter	kuromoji_stemmer	長音の除去	サーバー → サーバ
+
+    Token Filter	ja_stop	ストップワードの除去	これ欲しい → 欲しい
+
+    Token Filter	kuromoji_number	漢数字の半角数字化	一〇〇〇 → 1000
+
+
+
+
+< カスタムしたAnalyzerのマッピング定義 >
+
+1. Token Filterは、主にkuromoji_analyzerに含まれるデフォルトのものを使用
+
+
+2. ICU Normalization Character Filteを以下の変換のために使用
+
+    全角ASCII文字を、半角文字に変換
+    半角カタカナを、全角カタカナに変換
+    英字の大文字を、小文字に変換
+
+    PUT sample_index
+    {
+        "settings": {
+            "analysis": {
+                "analyzer": {
+                    "my_ja_analyzer": {
+                        "type": "custom",
+                        "char_filter":[
+                                "icu_normalizer"
+                        ],
+                        "tokenizer": "kuromoji_tokenizer",
+                        "filter": [
+                            "kuromoji_baseform",
+                            "kuromoji_part_of_speech",
+                            "ja_stop",
+                            "kuromoji_number",
+                            "kuromoji_stemmer"
+                        ]
+                    }
+                }
+            }
+        },
+        "mappings": {
+            "properties": {
+                    "goods_name": {
+                    "type": "text",
+                    "analyzer": "my_ja_analyzer"
+                }
+            }
+        }
+    }
+
+
+
+< Analyzerの動作確認 >
+
+作成したAnalyzerで文章がどのように分割されるかを確認します。
+
+    GET sample_index/_analyze
+    {
+        "analyzer": "my_ja_analyzer",
+        "text" : "ファッション通販サイト「ZOZOTOWN」、ファッションコーディネートアプリ「WEAR」などの各種サービスの企画・開発・運営や、「ZOZOSUIT 2」、「ZOZOMAT」、「ZOZOGLASS」などの計測テクノロジーの開発・活用をおこなっています。"
+    }
+
+
+Analyzerの結果は以下の通りです。日本語による形態素解析が行われていることを確認できます。
+
+    {
+    "tokens" : [
+        {
+        "token" : "ファッション",
+        "start_offset" : 0,
+        "end_offset" : 6,
+        "type" : "word",
+        "position" : 0
+        },
+        {
+        "token" : "通販",
+        "start_offset" : 6,
+        "end_offset" : 8,
+        "type" : "word",
+        "position" : 1
+        },
+        {
+        "token" : "サイト",
+        "start_offset" : 8,
+        "end_offset" : 11,
+        "type" : "word",
+        "position" : 2
+        },
+        {
+        "token" : "zozotown",
+        "start_offset" : 12,
+        "end_offset" : 20,
+        "type" : "word",
+        "position" : 3
+        },
+        {
+        "token" : "ファッション",
+        "start_offset" : 22,
+        "end_offset" : 28,
+        "type" : "word",
+        "position" : 4
+        },
+        {
+        "token" : "ファッションコーディネートアプリ",
+        "start_offset" : 22,
+        "end_offset" : 38,
+        "type" : "word",
+        "position" : 4,
+        "positionLength" : 3
+        },
+        {
+        "token" : "コーディネート",
+        "start_offset" : 28,
+        "end_offset" : 35,
+        "type" : "word",
+        "position" : 5
+        },
+        {
+        "token" : "アプリ",
+        "start_offset" : 35,
+        "end_offset" : 38,
+        "type" : "word",
+        "position" : 6
+        },
+        {
+        "token" : "wear",
+        "start_offset" : 39,
+        "end_offset" : 43,
+        "type" : "word",
+        "position" : 7
+        },
+        {
+        "token" : "各種",
+        "start_offset" : 47,
+        "end_offset" : 49,
+        "type" : "word",
+        "position" : 10
+        },
+        {
+        "token" : "サービス",
+        "start_offset" : 49,
+        "end_offset" : 53,
+        "type" : "word",
+        "position" : 11
+        },
+        {
+        "token" : "企画",
+        "start_offset" : 54,
+        "end_offset" : 56,
+        "type" : "word",
+        "position" : 13
+        },
+        {
+        "token" : "開発",
+        "start_offset" : 57,
+        "end_offset" : 59,
+        "type" : "word",
+        "position" : 14
+        },
+        {
+        "token" : "運営",
+        "start_offset" : 60,
+        "end_offset" : 62,
+        "type" : "word",
+        "position" : 15
+        },
+        {
+        "token" : "zozosuit",
+        "start_offset" : 65,
+        "end_offset" : 73,
+        "type" : "word",
+        "position" : 17
+        },
+        {
+        "token" : "2",
+        "start_offset" : 74,
+        "end_offset" : 75,
+        "type" : "word",
+        "position" : 18
+        },
+        {
+        "token" : "zozomat",
+        "start_offset" : 78,
+        "end_offset" : 85,
+        "type" : "word",
+        "position" : 19
+        },
+        {
+        "token" : "zozoglass",
+        "start_offset" : 88,
+        "end_offset" : 97,
+        "type" : "word",
+        "position" : 20
+        },
+        {
+        "token" : "計測",
+        "start_offset" : 101,
+        "end_offset" : 103,
+        "type" : "word",
+        "position" : 23
+        },
+        {
+        "token" : "テクノロジ",
+        "start_offset" : 103,
+        "end_offset" : 109,
+        "type" : "word",
+        "position" : 24
+        },
+        {
+        "token" : "開発",
+        "start_offset" : 110,
+        "end_offset" : 112,
+        "type" : "word",
+        "position" : 26
+        },
+        {
+        "token" : "活用",
+        "start_offset" : 113,
+        "end_offset" : 115,
+        "type" : "word",
+        "position" : 27
+        },
+        {
+        "token" : "おこなう",
+        "start_offset" : 116,
+        "end_offset" : 120,
+        "type" : "word",
+        "position" : 29
+        }
+    ]
+    }
+
+
+なお、「ファッションコーディネートアプリ」が、
+
+"ファッション"、"ファッションコーディネートアプリ"、"コーディネート"、"アプリ"の4つに重複して分割されているのは、
+
+kuromoji_tokenizerの形態素解析のmodeがデフォルトでsearchになっているためです。
+
+
+    {
+        "tokens" : [
+            {
+                "token" : "ファッション",
+                "start_offset" : 0,
+                "end_offset" : 6,
+                "type" : "word",
+                "position" : 0
+            },
+            {
+                "token" : "ファッションコーディネートアプリ",
+                "start_offset" : 0,
+                "end_offset" : 16,
+                "type" : "word",
+                "position" : 0,
+                "positionLength" : 3
+            },
+            {
+                "token" : "コーディネート",
+                "start_offset" : 6,
+                "end_offset" : 13,
+                "type" : "word",
+                "position" : 1
+            },
+            {
+                "token" : "アプリ",
+                "start_offset" : 13,
+                "end_offset" : 16,
+                "type" : "word",
+                "position" : 2
+            }
+        ]
+    }
+
+
+< 形態素解析のmode >
+
+search以外にも、形態素解析のmodeは以下の3つから選択が可能です。
+
+
+    mode	説明	例
+
+    normal	通常のセグメンテーションで単語分割しない	"ファッションコーディネートアプリ"
+
+    search	検索を対象としたセグメンテーションで単語分割する	"ファッション"、"ファッションコーディネートアプリ"、"コーディネート"、"アプリ"
+
+    extended	拡張モードは不明な単語を1文字に分割する	"ファッション"、"ファッションコーディネートアプリ"、"コーディネート"、"ア"、"プ"、"リ"
+
+
+
+modeを選択した場合のマッピング定義の例
+参考までにmodeにextendedを選択する場合のマッピング定義例を紹介します。
+
+
+注意点は、extendedによって1文字に分割したトークンがある場合、"kuromoji_part_of_speech token filter" によって、不要な品詞の除去対象になる点です。
+
+なお、今回は確認が目的のため、"kuromoji_part_of_speech token filter" は指定していません。
+
+PUT sample_index
+{
+  "settings": {
+    "analysis": {
+      "tokenizer": {
+        "my_custom_tokenizer": {
+          "mode": "extended",
+          "type": "kuromoji_tokenizer",
+          "discard_punctuation": "true"
+        }
+      },
+      "analyzer": {
+        "my_ja_analyzer": {
+          "type": "custom",
+          "char_filter":[
+                "icu_normalizer"
+          ],
+          "tokenizer": "my_custom_tokenizer",
+          "filter": [
+            "kuromoji_baseform",
+            "ja_stop",
+            "kuromoji_number",
+            "kuromoji_stemmer"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+      "properties": {
+        "goods_name": {
+          "type": "text",
+          "analyzer": "my_ja_analyzer"
+       }
+    }
+  }
+}
+
+
+
+以下の文章を用いて、作成したextendedモードのAnalyzerの動作確認をします。
+
+GET sample_index/_analyze
+{
+  "analyzer": "my_ja_analyzer",
+  "text" : "ファッションコーディネートアプリ"
+}
+以下の結果から、extendedモードによる形態素解析が行われていることが確認できます。
+
+{
+  "tokens" : [
+    {
+      "token" : "ファッション",
+      "start_offset" : 0,
+      "end_offset" : 6,
+      "type" : "word",
+      "position" : 0
+    },
+    {
+      "token" : "ファッションコーディネートアプリ",
+      "start_offset" : 0,
+      "end_offset" : 16,
+      "type" : "word",
+      "position" : 0,
+      "positionLength" : 5
+    },
+    {
+      "token" : "コーディネート",
+      "start_offset" : 6,
+      "end_offset" : 13,
+      "type" : "word",
+      "position" : 1
+    },
+    {
+      "token" : "ア",
+      "start_offset" : 13,
+      "end_offset" : 14,
+      "type" : "word",
+      "position" : 2
+    },
+    {
+      "token" : "プ",
+      "start_offset" : 14,
+      "end_offset" : 15,
+      "type" : "word",
+      "position" : 3
+    },
+    {
+      "token" : "リ",
+      "start_offset" : 15,
+      "end_offset" : 16,
+      "type" : "word",
+      "position" : 4
+    }
+  ]
+}
+
+
+
+
+Elasticsearchで日本語検索を扱うためのマッピング定義
+https://techblog.zozo.com/entry/elasticsearch-mapping-config-for-japanese-search
+
+
+Analizer-Refrense
+https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-analyzers.html
+
+
+

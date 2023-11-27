@@ -1,0 +1,103 @@
+
+< ElasticSearch の Text Analyzer について >
+
+テキスト分析（=検索に最適なフォーマットに変換するプロセス）を行ってくれるanalyzer。
+
+Elasticsearchにおいて、最も重要な機能のうちのひとつです。
+
+今回はそんなanalyerを使う前に、最低限把握しておきたい内容をまとめました。
+
+
+< 1. analyzerを構成する3つの要素 >
+
+    analyzerはcharacter filter, tokenizer, token filterの3つから構成されており、それぞれの役割は以下の通りです。
+
+
+
+名称	内容
+
+Character filters	文字列に対し、Tokenizerで分割する前に必要な処理（追加、削除、変更）を行う。
+前処理的ポジションで、使用は任意。
+
+Tokenizer	文字列を単語レベルに分割する役割を持つ。
+必須項目。
+
+Token filters	Tokenizerで分割された内容に対し、必要な処理（追加、削除、変更）を行う。
+後処理的ポジションで、使用は任意。
+
+
+
+< 2. テキスト分析の対象 >
+
+続いて、テキスト分析の対象になるのは何なのか把握しておきましょう。
+
+Elasticsearchに保存されているデータ
+クライアントに入力されて検索されるデータ
+の2つになります。
+
+上記2つは原則同じテキスト分析を用いるのが好ましいとされており、デフォルトでは同じ方法で分析されます。
+
+が、どうしても異なる分析方法を使いたい場合は以下のように、インデックスを作成する際、
+mappingsでsearch analyzerを記述して、後者（=クライアントに入力されて検索されるデータ）の分析方法を別途指定します。
+
+
+
+ずはsettingsとmappingsが書かれたjsonを作ろう。
+settingsは、アナライザーを定義するものである。
+１つのトークナイザーと複数のフィルタで構成されているのがアナライザーだ。
+
+mappingsは、index内の構成を定義するものである。
+ここで analyzer にsettingsで書いたアナライザーを指定するのを忘れないように！（じゃないとアナライザーが動かない）
+search_analyzer は、もしかしたらなくても大丈夫かもしれない。
+なくても大丈夫だとわかった方はぜひコメントを。
+
+my_ngram に分割する最小文字と最大文字を指定している。どのように判断して都度分割文字数を決めているのかわからないが、elasticsearch側でよしなにやってくれているよう。
+kuromoji_stemmer は「ライダー」「ライダ」も同じものとして扱ってくれる優れモノ。
+
+
+
+< 超重要 >
+
+
+
+1. "analyzer": "autocomplete",
+
+2. "search_analyzer": "standard" 
+
+上記2つは原則同じテキスト分析を用いるのが好ましいとされており、デフォルトでは同じ方法で分析されます。
+
+
+
+
+GET ocean_dataset/_analyze
+{
+  "analyzer": "ocean_dataset_analyzer",
+  "text" : "ファッション通販サイト「ZOZOTOWN」、ファッションコーディネートアプリ「WEAR」などの各種サービスの企画・開発・運営や、「ZOZOSUIT 2」、「ZOZOMAT」、「ZOZOGLASS」などの計測テクノロジーの開発・活用をおこなっています。"
+}
+
+
+
+
+【elasticsearch】Kuromojiとngramで検索精度を上げてみる
+https://qiita.com/dai-maru/items/8717c9fb31bf43e1cd31
+
+
+[Elasticsearch] analyzerを使う前に把握しておきたい内容まとめ
+https://qiita.com/C_HERO/items/094af261db4725b4baa9
+
+
+Elasticsearchで日本語検索を扱うためのマッピング定義
+https://techblog.zozo.com/entry/elasticsearch-mapping-config-for-japanese-search
+
+
+Analizer-Refrense
+https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-analyzers.html
+
+
+
+
+【Elasticsearch】Analyzerを手動で設定する方法 -Analyzerを理解する-
+https://tech-blog.rakus.co.jp/entry/20191002/elasticsearch
+
+
+

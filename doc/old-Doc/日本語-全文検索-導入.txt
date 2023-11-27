@@ -1,0 +1,322 @@
+
+< ElasticSearch で日本語全文検索エンジンを実装する！ >
+
+
+Elasticsearchは全文検索を強みとした検索エンジンです。
+
+今回は、日本語の全文検索をElasticsearchで実践していきます。
+
+Elasticsearchで日本語の全文検索を行うには、kuromojiプラグインとicuプラグインを使用します。
+
+
+1. 日本語の全文検索は難しい
+
+    例えば英語の場合、単語の区切りはスペースで判定することができます。
+
+        How’s the weather today?
+
+    一方、日本語の場合、スペースで判定することはできません。
+
+        今日の天気はどうですか？
+
+    どこからどこまでが1つの単語かという判定が難しいです（日本人もうまく分けられないのでは？と思ったり）。
+
+    そこで、Elasticsearchでは2種類の分析方法で日本語のテキスト解析を行います。
+
+
+
+2. 分析方法
+
+    1. 形態素解析
+
+        形態素解析では、辞書等を用いて意味のある単語に区切ります。
+        
+        辞書による検出を行うため、辞書にない単語に弱く、新語に対応することができません。
+        
+        このため、検索精度は期待できますが、検索漏れが多くなってしまいがちです。
+
+        形態素解析はkuromojiによって行われます。
+
+    2. n-gram
+        
+        n-gramでは、文書をn文字ずつ決まった間隔で区切ります。
+        
+        この方法だと、新語であっても関係なく検出できるので、検索漏れは少ないです。
+        
+        一方、無意味な分割が多くなってしまいます。n-gramでは、品詞ごとに区切ることはできません。
+
+        n-gramのアナライザはデフォルトでelasticsearchに入っています。
+
+        elasticsearchでの日本語の全文検索では、形態素解析とn-gramを組み合わせて行います。
+        
+        それによって、両者の弱点を補いながら、効果的な検索が可能になります。
+
+
+3. インデックスの作成
+
+
+kuromojiとn-gramを適用できるインデックスを作成していきます。
+
+これらを適用するには、インデックスのmappingに記述する必要があります。
+
+< 重要 >
+
+mappingのデータ構造定義にてセッティングする必要がある！
+
+なお、デフォルトで検索すると、形態素解析の結果が返ってきます。
+
+今回は、辞書として類義語を指定し、それをもとに全文検索ができるようにします。
+
+
+PUT japan_lang_test
+{
+  "settings": {
+    "analysis": {
+      "char_filter": {
+        "normalize": {
+          "type": "icu_normalizer",
+          "name": "nfkc",
+          "mode": "compose"
+        }
+      },
+      "tokenizer": {
+        "ja_kuromoji_tokenizer": {
+          "mode": "search",
+          "type": "kuromoji_tokenizer",
+          "discard_compound_token": true,
+          "user_dictionary_rules": [
+          ]
+        },
+        "ja_ngram_tokenizer": {
+          "type": "ngram",
+          "min_gram": 2,
+          "max_gram": 2,
+          "token_chars": [
+            "letter",
+            "digit"
+          ]
+        }
+      },
+      "filter": {
+        "ja_index_synonym": {
+          "type": "synonym",
+          "lenient": false,
+          "synonyms": [
+            
+          ]
+        },
+        "ja_search_synonym": {
+          "type": "synonym_graph",
+          "lenient": false,
+          "synonyms": [
+            "シノニム, 類義語",
+            "関西大学, 関大"
+          ]
+        }
+      },
+      "analyzer": {
+        "ja_kuromoji_index_analyzer": {
+          "type": "custom",
+          "char_filter": [
+            "normalize"
+          ],
+          "tokenizer": "ja_kuromoji_tokenizer",
+          "filter": [
+            "kuromoji_baseform",
+            "kuromoji_part_of_speech",
+            "ja_index_synonym",
+            "cjk_width",
+            "ja_stop",
+            "kuromoji_stemmer",
+            "lowercase"
+          ]
+        },
+        "ja_kuromoji_search_analyzer": {
+          "type": "custom",
+          "char_filter": [
+            "normalize"
+          ],
+          "tokenizer": "ja_kuromoji_tokenizer",
+          "filter": [
+            "kuromoji_baseform",
+            "kuromoji_part_of_speech",
+            "ja_search_synonym",
+            "cjk_width",
+            "ja_stop",
+            "kuromoji_stemmer",
+            "lowercase"
+          ]
+        },
+        "ja_ngram_index_analyzer": {
+          "type": "custom",
+          "char_filter": [
+            "normalize"
+          ],
+          "tokenizer": "ja_ngram_tokenizer",
+          "filter": [
+            "lowercase"
+          ]
+        },
+        "ja_ngram_search_analyzer": {
+          "type": "custom",
+          "char_filter": [
+            "normalize"
+          ],
+          "tokenizer": "ja_ngram_tokenizer",
+          "filter": [
+            "ja_search_synonym",
+            "lowercase"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "syn_field": {
+        "type": "text",
+        "search_analyzer": "ja_kuromoji_search_analyzer",
+        "analyzer": "ja_kuromoji_index_analyzer",
+        "fields": {
+          "ngram": {
+            "type": "text",
+            "search_analyzer": "ja_ngram_search_analyzer",
+            "analyzer": "ja_ngram_index_analyzer"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+
+上記のクエリは、”synonym_index”というインデックスのフィールド”syn_field”に全文検索用のフィールドを作成した例です。
+
+類義語として「シノニム、類義語」と「関西大学、関大」を定義しました（特に意味はありません）。
+
+類義語は適宜変更してください。
+
+
+4. データ準備
+
+上記クエリを実行すると、データの無い箱だけのインデックが作成されます。ここにデータを入れてみます。
+
+POST _bulk
+{"index": {"_index": "synonym_index", "_id": 1}}
+{"syn_field": "シノニム"}
+{"index": {"_index": "synonym_index", "_id": 2}}
+{"syn_field": "類義語"}
+{"index": {"_index": "synonym_index", "_id": 3}}
+{"syn_field": "関西大学"}
+{"index": {"_index": "synonym_index", "_id": 4}}
+{"syn_field": "関西の大学"}
+{"index": {"_index": "synonym_index", "_id": 5}}
+{"syn_field": "関大のシノニム"}
+{"index": {"_index": "synonym_index", "_id": 6}}
+{"syn_field": "関大の類義語"}
+{"index": {"_index": "synonym_index", "_id": 7}}
+{"syn_field": "関東大学"}
+{"index": {"_index": "synonym_index", "_id": 8}}
+{"syn_field": "類義語辞典"}
+{"index": {"_index": "synonym_index", "_id": 9}}
+{"syn_field": "ついに関西で大学生活"}
+
+
+　
+5. 既存のインデックスのフィールドに適用したい場合は
+
+既存のインデックスにすでにデータがあり、それに全文検索を適用させることもできます。
+
+この場合そのインデックで適用させることはできず、新たなインデックスを作成して再インデックスする必要があります。
+
+再インデックスの手順① インデックス作成
+まずは、上記のインデックス作成のクエリを実行します。このとき、mappingの設定は全文検索を適用したいフィールドのみ記述すればOKです。
+
+記述しなかったフィールドは、再インデックス時に自動で認識してマッピングしてくれます。
+
+再インデックスの手順② 再インデックス実行
+枠組みを作成したら、元のデータがあるインデックスのデータを作成したインデックスにコピーします。
+
+再インデックスは以下のクエリで実行します。
+
+POST _reindex
+{
+  "source": {
+    "index": "元のインデックス"
+  },
+  "dest": {
+    "index": "作成したインデックス"
+  }
+}
+これで、データはそのままに、指定したフィールドに全文検索が適用されるようになります。
+
+
+6. 結果確認
+
+ドキュメントを登録したところで、実際に検索して全文検索ができるか試してみます。「関西大学」というキーワードで検索します。
+
+GET synonym_index/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "multi_match": {
+            "query": "関西大学",
+            "fields": [
+              "syn_field.ngram^1"
+            ],
+            "type": "phrase"
+          }
+        }
+      ]}
+    }
+  }
+
+「関西大学」というワードだけでなく、「関大」も検索結果にヒットしています。
+
+
+
+7. まとめ
+
+elasticsearchでkuromojiプラグインを用いて日本語の全文検索を行う方法を紹介しました。こうしてみても、日本語は解析が難しい言語だと実感できます、
+
+辞書を指定しないといけない点が少々面倒ですが、今回紹介した方法だと高い精度で全文検索が実現できるので、是非試してみてください！
+
+
+< 引用元データ >
+
+【Elastic】kuromojiプラグインを導入して日本語検索してみる
+https://www.learning-nao.com/?p=1285
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+PUT /damedame_analyzer/
+
+
+
+
+Elasticsearchで日本語の形態素解析を行おう。
+https://zenn.dev/opt/articles/c015a7ce758940
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+Elasticsearchで日本語検索を扱うためのマッピング定義
+https://techblog.zozo.com/entry/elasticsearch-mapping-config-for-japanese-search
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+

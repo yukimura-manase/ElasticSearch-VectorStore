@@ -1,0 +1,154 @@
+
+< Elasticsearch>
+
+Elastic Stack とは
+Elastic Stack は Elasticsearch 関連製品の総称です。
+バージョン 2.x 以前は「ELK」と呼ばれていましたが、バージョン 5 からは名称を改め「Elastic Stack」となりました。
+
+
+< 製品名 >	         < 機能 >
+Elasticsearch	ドキュメントを保存・検索します。
+Kibana	        データを可視化します。
+Logstash	    データソースからデータを取り込み・変換します。
+Beats	        データソースからデータを取り込みます。
+X-Pack	        セキュリティ、モニタリング、ウォッチ、レポート、グラフの機能を拡張します。
+
+
+
+はじめての Elasticsearch
+https://qiita.com/nskydiving/items/1c2dc4e0b9c98d164329
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+< ElasticSearchの起動 コマンド >
+
+# ElasticSearchディレクトリに移動
+    cd elasticsearch-7.0.0
+
+# ElasticSearchのプラグイン日本語検索プラグイン「 kuromoji 」をインストール
+    bin/elasticsearch-plugin install analysis-kuromoji
+
+
+# Elasticsearch を起動
+    bin/elasticsearch
+
+# ローカルホスト9200番でサーバーが立てば環境構築成功！！
+    http://localhost:9200/ 
+
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+< Kibanaの起動 コマンド >
+
+# Kibanaディレクトリに移動
+    cd kibana-7.0.0-darwin-x86_64
+
+# Kibanaを起動します。
+    bin/kibana
+
+# ローカルホスト5601番でサーバーが立てば環境構築成功！！
+    http://localhost:5601/
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+< Elasticsearch環境構築 Ver.MacOS >
+
+# 1, Elasticsearch をダウンロードするのに wget コマンドを使用しますので、インストールしておきます。
+    brew install wget
+
+# 2. Elasticsearch の動作に Java（バージョン 1.8.0_131 以上） が必要になるので、インストールしておきます。
+    java -version
+
+まずは、javaの確認！ なかったらインストール
+
+# wgetコマンドでURLから取得
+    wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.0.0-darwin-x86_64.tar.gz
+
+# tarコマンドで、tar.gzフォルダ(圧縮ファイル)を解凍
+    tar -xzf elasticsearch-7.0.0-darwin-x86_64.tar.gz
+
+    tarコマンドとは？
+    「tar」は、複数のファイルを1つにまとめた“アーカイブファイル”を作成／展開するコマンドです。
+
+    Linuxのtar.gzはzipの事？Linuxの圧縮と解凍について。
+    https://gama.e-creators.info/20160224-linux-tar-gz-zip
+
+
+# ElasticSearchディレクトリに移動
+    cd elasticsearch-7.0.0
+
+# ElasticSearchのプラグイン日本語検索プラグイン「 kuromoji 」をインストール
+    bin/elasticsearch-plugin install analysis-kuromoji
+
+
+# Elasticsearch を起動
+    bin/elasticsearch
+
+# ローカルホスト9200番でサーバーが立てば環境構築成功！！
+    http://localhost:9200/ 
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+< Kibanaの導入 >
+
+wget https://artifacts.elastic.co/downloads/kibana/kibana-7.0.0-darwin-x86_64.tar.gz
+
+
+
+
+tar -xzf kibana-7.0.0-darwin-x86_64.tar.gz
+
+# Kibanaディレクトリに移動
+    cd kibana-7.0.0-darwin-x86_64
+
+# Kibanaを起動します。
+    bin/kibana
+
+# ローカルホスト5601番でサーバーが立てば環境構築成功！！
+    http://localhost:5601/
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+< CRUDオペレーション（RESTful API）>
+
+Elasticsearch ではリレーショナルデータベースとは異なる用語を使用しますが、概ね以下のように理解しておけば良いでしょう。
+
+1. Elasticsearch => リレーショナルデータベース
+
+2. Index => データベース
+
+3. Type => テーブル
+
+4. Document => レコード
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+< ドキュメントを作成 >
+
+ドキュメントを作成するには、PUT で「/インデックス/タイプ/ドキュメントID」にアクセスし、ドキュメントの中身を JSON で渡します。
+
+
+Elasticsearch は RESTful インターフェースで操作できますが、このチュートリアルでは Kibana の「Dev Tools」を使用します。
+
+Kibana のメニューの中から「Dev Tools」（レンチアイコン）を選択してください。
+以下のような画面が表示されます。
+
+
+----------------------------------------------------------------------------------------------------------------------------------------
+
+< Fessの導入 >
+
+
+
+
+
+< ElasticSearch 全文検索 >
+
+
+
+
+
+< ElasticSearch 形態素解析 n-gram >
+

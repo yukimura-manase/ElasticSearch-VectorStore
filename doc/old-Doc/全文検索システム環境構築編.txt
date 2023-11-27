@@ -1,0 +1,141 @@
+
+< DatasetParse.py => 必要なモジュールのinstall >
+
+
+< 必要なモジュールのinstall >
+
+
+
+# pipでElasticsearchクライアントのインストール
+    python -m pip install elasticsearch
+
+
+# Excelを解析するためのライブラリをインストール Ver.2
+
+    python -m pip install openpyxl
+
+
+# PDFを解析するためのライブラリをインストール
+    python -m pip install pdfminer.six
+
+
+# パワーポイントを解析するためのライブラリをインストール
+    python -m pip install python-pptx
+
+
+# Wordを解析するためのライブラリをインストール
+    python -m pip install python-docx
+
+
+
+# requestsをpipからインストール => requestsライブラリ(HTTP通信)を実施するためのライブラリ！
+    python -m pip install requests
+
+# tqdmをインストール
+    python -m pip install tqdm
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< ElasitcSearchの専用プラグインinstall方法 Ver. analysis-kuromoji() >
+
+
+# Elasticsearchのbinフォルダをカレントディレクトリに移動する
+    cd C:\elasticsearch-7.16.2\bin
+
+# プラグイン・インストール
+
+    # 
+    elasticsearch-plugin install analysis-kuromoji (プラグイン名)
+
+    elasticsearch-plugin install analysis-icu
+
+# インストールの確認
+    elasticsearch-plugin list
+
+    または、、、
+
+    インストールされたかどうかは、elasticsearchのpluginsフォルダで確認することができます。
+
+
+【Elastic】Elasticsearchにプラグインをインストールする方法
+https://www.learning-nao.com/?p=1227
+
+
+
+Elastic】kuromojiプラグインを導入して日本語検索してみる
+https://www.learning-nao.com/?p=1285
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< DatasetParse.py 仕様モジュールたち >
+
+# zipfileを解析するためのzipfileモジュールを読み込む!
+import zipfile
+
+# ディレクトリ移動のために必要
+import os
+
+# 指定したフォルダにある特定のファイルを取得するためにglob関数を使用！
+import glob
+
+
+
+# Pythonクライアント用のElasticsearchライブライをimportする！
+from elasticsearch import Elasticsearch
+
+
+# Word
+import docx
+
+
+# Excel
+import openpyxl
+
+# PowerPoint
+from pptx import Presentation
+
+# PDF
+from pdfminer.converter import PDFPageAggregator
+from pdfminer.layout import LAParams, LTContainer, LTTextBox
+from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+from pdfminer.converter import TextConverter
+from pdfminer.pdfpage import PDFPage
+
+
+from io import StringIO
+
+
+from chardet.universaldetector import UniversalDetector
+
+import chardet
+
+# chardetによるエンコーディングの判定とテキストデータのデコード
+# sjis.txtの内容：このファイルはシフトJISでエンコーディングされています
+from chardet import detect
+
+
+from pathlib import Path
+from typing import List
+
+
+# 日付ライブラリ
+import datetime
+import time
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+

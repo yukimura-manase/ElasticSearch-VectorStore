@@ -1,0 +1,59 @@
+version: "3"
+services:
+  # ElasticSearch => 全文検索エンジン
+  elasticsearch:
+    # Current の Dockerfile をベースに ElasticSearch を構築する
+    build: .
+    container_name: elasticsearch
+    # ElasticSearch コンテナの環境変数を設定する
+    environment:
+      - discovery.type=single-node # ElasticSearch をシングルノードモードで動作
+      - cluster.name=docker-cluster # ElasticSearch クラスタの名前を "docker-cluster" に設定
+      - bootstrap.memory_lock=true # メモリをロックする設定を有効
+      - xpack.security.enabled=false # セキュリティ機能を有効 or 無効 => 開発の際は、false でOK
+      - xpack.monitoring.collection.enabled=true # モニタリングの有効化を設定
+      - ELASTICSEARCH_USERNAME=robotama # ElasticSearch の ユーザー
+      - ELASTIC_PASSWORD=robotama_elastic #  ElasticSearch のパスワード
+      - "ES_JAVA_OPTS=-Xms512M -Xmx512M" # ElasticSearch Java仮想マシンの初期ヒープサイズと最大ヒープサイズを設定
+    # メモリロックの制限を設定する
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    #  ElasticSearch データを永続化するためのボリューム elasticsearch-data を設定しています。
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    # コンテナの再起動ポリシーを "always" に設定しています => コンテナが停止した場合に自動的に再起動します。
+    restart: always
+    ports:
+      - "9200:9200"
+
+  # Kibana => ElasticSearch に投入した Data を確認することができる Webツール
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.2
+    container_name: kibana
+    ports:
+      - 5601:5601
+    # Kibana の環境変数
+    environment:
+      - ELASTICSEARCH_URL=http://localhost:9200 # Kibana が ElasticSearch に接続するためのURLを指定
+      - ELASTICSEARCH_USERNAME=robotama # ElasticSearch への認証に使用されるユーザー名を指定
+      - ELASTICSEARCH_PASSWORD=robotama_elastic # ElasticSearch への認証に使用されるパスワードを指定
+    # 依存関係を定義する
+    depends_on:
+      # Kibana が ElasticSearch に依存していることを設定
+      # => Kibanaコンテナが起動する前にElasticsearchコンテナが起動する必要があります。
+      - elasticsearch
+    restart: always
+  # eland クライアント => Elasticsearch Machine Learning の操作に使用 => ベクトル検索を実現するため。
+  eland:
+    depends_on:
+      - elasticsearch
+      - kibana
+    image: docker.elastic.co/eland/eland
+    command: "echo specify eland command"
+
+# ボリューム elasticsearch-data のドライバーを "local" に設定 => ElasticSearch のデータを永続化する
+volumes:
+  elasticsearch-data:
+    driver: local

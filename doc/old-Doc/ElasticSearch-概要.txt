@@ -1,0 +1,507 @@
+
+
+< ElasticSearch調査事項 >
+
+
+•検索エンジンは、インデックス（索引）型であり、形態素解析又はN-gram解析による検索結果を出力できる。
+検索結果の出力は、形態素解析、N-gram解析 のいずれかで可能でしょうか。
+
+
+日本語の全文検索をElasticsearchで実践していきます。Elasticsearchで日本語の全文検索を行うには、kuromojiプラグインとicuプラグインを使用します。
+
+
+kuromojiプラグインを導入して日本語検索してみる
+https://www.learning-nao.com/?p=1285
+
+
+Elasticsearchのanalyzerを使用することで簡単に形態素解析を行うことが可能です。
+
+1. 形態素解析
+
+  形態素解析では、辞書等を用いて意味のある単語に区切ります。辞書による検出を行うため、辞書にない単語に弱く、新語に対応することができません。
+  このため、検索精度は期待できますが、検索漏れが多くなってしまいがちです。
+
+  形態素解析はkuromojiによって行われます。
+
+2. N-gram解析
+
+  n-gramでは、文書をn文字ずつ決まった間隔で区切ります。
+  この方法だと、新語であっても関係なく検出できるので、検索漏れは少ないです。
+  一方、無意味な分割が多くなってしまいます。n-gramでは、品詞ごとに区切ることはできません。
+
+  n-gramのアナライザはデフォルトでelasticsearchに入っています。
+
+【引用元】
+Elasticsearchで日本語の形態素解析を行おう。
+https://zenn.dev/opt/articles/c015a7ce758940
+
+
+Elasticsearch のすごいところは、大量のドキュメントの中から形態素解析や n-gram など自然言語的な解析を行った上で、
+素早く検索クエリを処理でき、かつノードを増やすことで簡単にスケールアウトすることができることです。
+
+Elasticsearch を検索エンジンとして利用する際のポイント
+https://engineering.linecorp.com/ja/blog/using-elasticsearch-as-a-search-engine/
+
+
+ElasticsearchとKuromojiを使った形態素解析とN-Gramによる検索の適合率と再現率の向上
+https://atmarkit.itmedia.co.jp/ait/articles/1507/29/news010_2.html
+
+
+
+
+検索結果出力例としては生の結果ではなく、google検索結果のような出力イメージとしてほしいです。適当なサイトから引っ張ってきてもよいです。
+
+
+Elasticsearch を利用したサイト内検索を簡単に実装できましたのでご紹介します。
+
+検索エンジンには Elasticsearch を利用しています。
+
+Elasticsearch 採用ポイント
+日本語の Web ページを検索することになるので、自然言語特有の言い回しの正規化や、HTML タグのインデックス除去などネイティブの機能で対応できる
+Web API ベースでデータを取得できるため、アプリケーションサーバを立てなくても、フロントエンドから直接検索できる
+
+導入後の画像を添付いたします。
+
+【引用元】
+自社コーポレートサイトにサイト内検索を導入しました
+https://dev.classmethod.jp/articles/site-search-in-corporate-site/
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< Elasticsearchのメリット >
+
+Elasticsearchのメリットとして、以下が挙げられます。
+
+索引型検索を採用しているため、大量データに対して高速検索が可能
+標準で分散配置型の構成をとり、高速化と高可用性を実現
+JSONフォーマットで非定型データを投入可能
+REST APIによるシンプルなアクセスが可能
+関連ツールを利用して分析・可視化
+
+
+
+Elasticsearchの用語について
+ここでElasticsearchで知っておくべき用語と概念を示しておきます。
+Elasticsearchは様々なデータを格納するにあたり、MySQLなどのRDBMSで言うところのデータベースやテーブルに相当する概念が存在します。
+RDBに慣れている方も多いかと思いますので、比較する形で示したいと思います。
+※厳密に言うと異なる概念ですが、イメージしやすいかと思います。
+
+
+Elasticsearch用語	                      説明	                                      RDBMSで言うところの…
+
+  インデックス	                        ドキュメントを格納する場所	                  データベース
+  ドキュメントタイプ・マッピング	       ドキュメントの構成やフィールド型などの定義	    テーブル
+  ドキュメント	                        格納される１つの文章の単位	                  レコード
+  フィールド	                          ドキュメント内のKeyとValueの組み合わせ	       カラム
+
+
+
+
+Elasticsearch入門 
+https://future-architect.github.io/articles/20200623/#:~:text=%20Elasticsearch%E3%81%AF%E3%80%8C%E5%85%A8%E6%96%87%E6%A4%9C%E7%B4%A2%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E3%80%8D%E3%82%92%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%82%BD%E3%83%95%E3%83%88%E3%82%A6%E3%82%A7%E3%82%A2%E3%81%A7%E3%81%99%E3%80%82,%E5%85%A8%E6%96%87%E6%A4%9C%E7%B4%A2%E3%81%A8%E3%81%AF%E6%A4%9C%E7%B4%A2%E6%89%8B%E6%B3%95%E3%81%AE%E4%B8%80%E3%81%A4%E3%81%A7%E3%80%81%E6%96%87%E5%AD%97%E5%88%97%E3%82%92%E3%82%AD%E3%83%BC%E3%81%AB%E3%81%97%E3%81%A6%E8%A4%87%E6%95%B0%E3%81%AE%E6%96%87%E6%9B%B8%E3%83%87%E3%83%BC%E3%82%BF%E3%82%92%E3%81%BE%E3%81%9F%E3%81%8C%E3%81%A3%E3%81%A6%E6%A4%9C%E7%B4%A2%E3%81%97%E3%80%81%E7%9B%AE%E7%9A%84%E3%81%AE%E3%83%87%E3%83%BC%E3%82%BF%E3%82%92%E6%8E%A2%E3%81%97%E5%87%BA%E3%81%99%E6%A9%9F%E8%83%BD%E3%81%AE%E3%81%93%E3%81%A8%E3%82%92%E6%8C%87%E3%81%97%E3%81%BE%E3%81%99%E3%80%82%20EC%E3%82%B5%E3%82%A4%E3%83%88%E3%82%84%E3%82%B3%E3%83%B3%E3%83%86%E3%83%B3%E3%83%84%E3%83%9E%E3%83%8D%E3%82%B8%E3%83%A1%E3%83%B3%E3%83%88%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E3%81%AA%E3%81%A9%E3%81%A7%E5%88%A9%E7%94%A8%E3%81%95%E3%82%8C%E3%81%A6%E3%81%84%E3%82%8B%E3%81%84%E3%82%8F%E3%82%86%E3%82%8B%E6%A4%9C%E7%B4%A2%E3%82%A8%E3%83%B3%E3%82%B8%E3%83%B3%E3%81%A8%E5%91%BC%E3%81%B0%E3%82%8C%E3%82%8B%E3%82%82%E3%81%AE%E3%81%AF%E3%80%81%E8%A3%8F%E3%81%AE%E4%BB%95%E7%B5%84%E3%81%BF%E3%81%A8%E3%81%97%E3%81%A6%E5%85%A8%E6%96%87%E6%A4%9C%E7%B4%A2%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E3%81%8C%E5%8B%95%E3%81%84%E3%81%A6%E3%81%84%E3%82%8B%E3%82%82%E3%81%AE%E3%81%8C%E5%A4%9A%E3%81%84%E3%82%88%E3%81%86%E3%81%A7%E3%81%99%E3%80%82
+
+
+
+
+
+Elasticsearch導入前に気を付けておきたいこと！
+https://qiita.com/uzresk/items/e0b10c14875b79c450f2
+
+
+
+第４回 Elasticsearch 入門 検索の基本中の基本
+https://dev.classmethod.jp/articles/elasticsearch-getting-started-04/
+
+
+
+
+
+検索エンジンは、インデックス（索引）型であり、形態素解析又はN-gram解析による検索結果を出力できる。
+のままでいいということですね。
+
+Elasticsearch入門 
+https://future-architect.github.io/articles/20200623/#:~:text=%20Elasticsearch%E3%81%AF%E3%80%8C%E5%85%A8%E6%96%87%E6%A4%9C%E7%B4%A2%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E3%80%8D%E3%82%92%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%82%BD%E3%83%95%E3%83%88%E3%82%A6%E3%82%A7%E3%82%A2%E3%81%A7%E3%81%99%E3%80%82,%E5%85%A8%E6%96%87%E6%A4%9C%E7%B4%A2%E3%81%A8%E3%81%AF%E6%A4%9C%E7%B4%A2%E6%89%8B%E6%B3%95%E3%81%AE%E4%B8%80%E3%81%A4%E3%81%A7%E3%80%81%E6%96%87%E5%AD%97%E5%88%97%E3%82%92%E3%82%AD%E3%83%BC%E3%81%AB%E3%81%97%E3%81%A6%E8%A4%87%E6%95%B0%E3%81%AE%E6%96%87%E6%9B%B8%E3%83%87%E3%83%BC%E3%82%BF%E3%82%92%E3%81%BE%E3%81%9F%E3%81%8C%E3%81%A3%E3%81%A6%E6%A4%9C%E7%B4%A2%E3%81%97%E3%80%81%E7%9B%AE%E7%9A%84%E3%81%AE%E3%83%87%E3%83%BC%E3%82%BF%E3%82%92%E6%8E%A2%E3%81%97%E5%87%BA%E3%81%99%E6%A9%9F%E8%83%BD%E3%81%AE%E3%81%93%E3%81%A8%E3%82%92%E6%8C%87%E3%81%97%E3%81%BE%E3%81%99%E3%80%82%20EC%E3%82%B5%E3%82%A4%E3%83%88%E3%82%84%E3%82%B3%E3%83%B3%E3%83%86%E3%83%B3%E3%83%84%E3%83%9E%E3%83%8D%E3%82%B8%E3%83%A1%E3%83%B3%E3%83%88%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E3%81%AA%E3%81%A9%E3%81%A7%E5%88%A9%E7%94%A8%E3%81%95%E3%82%8C%E3%81%A6%E3%81%84%E3%82%8B%E3%81%84%E3%82%8F%E3%82%86%E3%82%8B%E6%A4%9C%E7%B4%A2%E3%82%A8%E3%83%B3%E3%82%B8%E3%83%B3%E3%81%A8%E5%91%BC%E3%81%B0%E3%82%8C%E3%82%8B%E3%82%82%E3%81%AE%E3%81%AF%E3%80%81%E8%A3%8F%E3%81%AE%E4%BB%95%E7%B5%84%E3%81%BF%E3%81%A8%E3%81%97%E3%81%A6%E5%85%A8%E6%96%87%E6%A4%9C%E7%B4%A2%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E3%81%8C%E5%8B%95%E3%81%84%E3%81%A6%E3%81%84%E3%82%8B%E3%82%82%E3%81%AE%E3%81%8C%E5%A4%9A%E3%81%84%E3%82%88%E3%81%86%E3%81%A7%E3%81%99%E3%80%82
+
+
+
+[Elasticsearch] 複数インデックスへの検索
+https://qiita.com/snamiki1212/items/5715e02c345b93d409b3
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< ElasticSearchでファイル検索 >
+
+
+様々なファイルをデータソースにElasticsearchへデータ投入する
+https://dev.classmethod.jp/articles/file-to-elasticsearch/
+
+
+
+ElasticsearchでPDF, MSOfficeファイルの全文検索
+https://tombo2.hatenablog.com/entry/2015/05/19/000839
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< ElasticSearchにKibanaを導入する >
+
+1. dir移動
+cd c:\kibana-7.16.2-windows-x86_64
+
+2. kibana起動
+.\bin\kibana
+
+./bin/kibana(Ver. Mac起動)
+
+デフォルトでは9200番ポートで起動しているESに接続し、5601番ポートで起動します。
+\もしESが9200番ポート以外で起動している場合、
+config/kibana.ymlを編集して適切なエンドポイントを指定しましょう。
+
+
+kibanaが起動したら、ブラウザでkibanaのDevToolsを開きます。
+http://localhost:5601/app/kibana#/dev_tools/console
+
+
+ElasticsearchはデータをJSONで扱いますか？
+ElasticsearchはデータをJSONで扱います。 
+
+そのデータを document と言います。 
+
+documentを保存する先は、 index と呼ばれ、 index に document を登録することを indexする（動詞）と言います。 
+document はJSONの為、フィールドと値(key: value)を持ちます。
+
+
+最低限知っておくべきES用語の説明を簡単に。
+
+index データの保管場所で、RDBMSにおけるdatabaseに相当するものです。
+typeを定義するためのmappingを１つ以上持てる。
+type index内に定義可能。RDBMSにおけるテーブルみたいなものです。
+
+field データフィールド。RDBMSにおけるカラムです。
+
+document データ本体。RDBMSにおけるレコードです。
+
+mapping
+indexでdocumentをどのようなfiled/データ型で登録しておくのかを定義するのが　mappingになります。
+デフォルトでは最初にdocumentを登録した際、自動でfieldの型が判断され、indexが作成されます。
+※事前にindexのmapping情報を定義しておくことも可能
+
+
+
+初心者のためのElasticsearchその1
+https://dev.classmethod.jp/articles/es-01/
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< ElasticSearch追加調査事項 >
+
+・PDF検索は可能か
+・検索時にファイル種類の指定は可能か
+
+< 回答 >
+PDF検索および検索時にファイル種類の指定はできるようです。
+
+プラグインとしてオフィスファイルを解析するOSSやクローラを組み込むことで、Excel、Word、PDFなども含む、様々なバイナリファイルの検索が透過的に行えます。
+
+【参照元】
+Elasticsearchの検索クエリを書いてみよう！
+https://aslead.nri.co.jp/column/elasticsearch-search-query.html
+
+Docker ElasticSearchでPDF全文検索
+https://buto-dev-null.hatenablog.com/entry/2020/08/19/000000
+
+
+・Zipファイルの中は検索可能か？
+
+調査しましたが、zipファイルの中身を確認する等の記事など発見できませんでした。
+
+可能かどうか検証するため、ElasticSearchを実際に使って、試している最中になります。
+
+
+Pythonを使ってzipファイルからファイルを取り出す
+https://qiita.com/mriho/items/f82c66e7a232b6b37206
+
+データ生成時点で、zipファイルからファイルを取り出して検索可能にしておく？？
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< サーバーアプリの概要設計 >
+
+また、検索データ生成は該当するフォルダについて、
+毎日タスクマネージャーで検索データを生成するサーバーアプリケーションを作成するような形にしようと思いますが、
+このアプリケーションについての「概要設計」もお願いします。
+
+・Pythonスクリプト
+・PowerShellスクリプト
+・C#で作成
+など
+
+PythonにElasticsearchのライブラリが存在しており、連携が比較的しやすいことから、ElasticSearchとの連携はPythonスクリプトがよさそうです。
+
+C#で作成したプロジェクトの中にPythonスクリプトを組み込んでElasticSearchのサーバーにデータを登録する！
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< 日本語の全文検索機能を実装する >
+
+
+アナライズ処理のため、analysis-icuとanalysis-kuromojiのプラグインをインストール
+
+
+
+Elasticsearchで日本語の全文検索の機能を実装する
+https://www.elastic.co/jp/blog/how-to-implement-japanese-full-text-search-in-elasticsearch
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< Elasticsearchコマンド >
+
+
+最低限知っておくべきES用語の説明を簡単に。
+
+1. index => database
+    index データの保管場所で、RDBMSにおけるdatabaseに相当するものです。typeを定義するためのmappingを１つ以上持てる。
+
+2. type => テーブル
+    type index内に定義可能。RDBMSにおけるテーブルみたいなものです。
+
+3. field => カラム
+    field データフィールド。RDBMSにおけるカラムです。
+
+4. document => レコード
+    document データ本体。RDBMSにおけるレコードです。
+
+mappingとは？
+
+indexでdocumentをどのようなfiled/データ型で登録しておくのかを定義するのがmappingになります。
+
+デフォルトでは最初にdocumentを登録した際、自動でfieldの型が判断され、indexが作成されます。
+
+※事前にindexのmapping情報を定義しておくことも可能
+
+
+< 新規作成 >
+
+//  入力
+# Dev Toolsのコンソール
+
+PUT myes/book/b001      # b001というIDで登録
+{
+  "title" : "hello java",
+  "description" : "java book",
+  "author" : {
+    "name":"taro",
+    "age":30
+  },
+  "price": 1000
+}
+
+
+//  結果
+{
+  "_index" : "myes",
+  "_type" : "book",
+  "_id" : "b001",
+  "_version" : 1,
+  "result" : "created",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 0,
+  "_primary_term" : 1
+}
+
+デフォルトではデータ登録時に自動的にmappingされます。
+
+
+同じIDでPUTを実行すると、データの更新となります。
+
+
+< mapping情報の取得 >
+
+/<index名>/_mappingsとすればindexのmapping情報が取得できます。
+
+GET myes/_mappings
+
+登録したデータから自動的に型が決まっています。
+
+
+< ドキュメントの取得 >
+
+ドキュメントの取得はGETメソッドでキーを指定することで行います。
+
+GET myes/book/b001
+
+
+< ドキュメントの取得 Ver.検索 >
+
+検索はGETメソッドで検索条件を指定すれば可能です。
+
+GET myes/book/_search 
+{
+  "query": {
+    "term": {
+      "title": "hello"
+    }
+  }
+}
+
+
+
+< ドキュメントの確認 >
+
+HEADをつかえばdocumentの存在確認が可能です。
+
+documetがあれば200、なければ404が返ってきます。
+
+HEAD /myes/book/b001
+
+
+
+indexを自分で作成したい場合、PUTメソッドで　mappingも指定しつつ定義可能です。
+
+PUT static_index
+{
+    "settings" : {
+        "number_of_shards" : 1
+    },
+    "mappings" : {
+        "type1" : {
+            "properties" : {
+                "field1" : { "type" : "text" }
+            }
+        }
+    }
+}
+
+削除するときはDELETEメソッドで行います。
+
+DELETE /static_index
+
+
+初心者のためのElasticsearchその1
+https://dev.classmethod.jp/articles/es-01/
+
+
+< ElasticSearch >
+
+ElasticSearchのメモ
+今回検索にて「elastic」などで検索してもヒットしない現象が起きました。
+
+GET testindex/_search
+{
+  "query" : {
+    "match": {
+      "title": "elastic"
+    }
+  }
+}
+ElasticSearchでは"match"は完全一致検索となるため、部分一致検索をしたい場合は"match_phrase_prefix"を使用しないといけないみたいです。
+知らなかった。。。
+
+
+GET testindex/_search
+{
+  "query" : {
+    "match_phrase_prefix": {
+      "title": "elastic"
+    }
+  }
+}
+上記であれば検索可能。
+
+【ElasticSearch】bulkAPIを用いたデータ登録および検索をC#で試してみた
+https://qiita.com/miyadev55/items/8686bcc34e21b2fbe426
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Elasticsearch 入門。その１
+https://dev.classmethod.jp/articles/elasticsearch-starter-1/
+
+
+
+Elasticsearch 入門。その3
+https://dev.classmethod.jp/articles/elasticsearch-starter3/
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< elasticsearch query 書き方 >
+
+
+
+
+
+
+
+Elasticsearch入門】速習Elasticsearch Search query 基本クエリ(match_phrase, multi_match)編
+https://qiita.com/doiken_/items/670dd8a8518ebdd0b104
+
+
+SQLとElasticsearchとのクエリの比較
+https://qiita.com/NAO_MK2/items/630f2c4caa0e8a42407c
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< 概要設計 >
+
+制作日数まで見込みを立てておく！
+
+1.  Pythonスクリプトでzipファイルの中身を取り出す & データ送信
+
+2. ElasticSearchで検索
+
+共有フォルダ => Pythonスクリプトでzipファイルの中身を取り出す => データ加工(検索元データを生成する) => ElasticSearchと接続する。
+
+
+制作見込み日数
+
+
+Pythonを使ってzipファイルからファイルを取り出す
+https://qiita.com/mriho/items/f82c66e7a232b6b37206
+
+データ生成時点で、zipファイルからファイルを取り出して、検索可能にしておく。
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+< WebApp >
+
+
+
+
+Elastic App Search
+https://www.elastic.co/jp/app-search/
+
+
+Elasticsearch と python と Flask で Webアプリ(?)化してみる
+https://konchangakita.hatenablog.com/entry/2020/07/17/220000
+
+
+Elasticsearchを使用してレシピ検索アプリ
+https://qiita.com/koriyama/items/70edc8c8fc43fc92a8c5
+
+
+
+< 検索処理 >
+
+
+初心者のためのElasticsearchその2 -いろいろな検索-
+https://dev.classmethod.jp/articles/es-02/
+
+
+
